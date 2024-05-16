@@ -1,0 +1,47 @@
+version: '3.9'
+networks:
+  betr-network:
+volumes:
+  database-volume:
+  logs:
+services:
+  mydb:
+    image: mysql:latest
+    #    ports:
+    #      - "3308:3306"
+    healthcheck:
+      test: [ "CMD","ls" ]
+    container_name: database-container
+    environment:
+      MYSQL_ROOT_PASSWORD: Taehyungieoppa@3012
+      MYSQL_DATABASE: betr
+    volumes:
+      - database-volume:/var/lib/mysql
+    networks:
+      - betr-network
+  betr-backend:
+    image: svp3012/betr-backend
+    container_name: betr-backend
+    ports:
+      - "5000:5000"
+    environment:
+      MYSQL_URL: jdbc:mysql://localhost:3306/betr?createDatabaseIfNotExist=true
+      MYSQL_USERNAME: svp
+      MYSQL_PASSWORD: Taehyungieoppa@3012
+    volumes:
+      - logs:/logs
+    networks:
+      - betr-network
+    depends_on:
+      mydb:
+        condition: service_healthy
+  betr-frontend:
+    image: svp3012/betr-frontend
+    container_name: betr-frontend
+    stdin_open: true
+    ports:
+      - "3000:3000"
+    networks:
+      - betr-network
+    depends_on:
+      - betr-backend

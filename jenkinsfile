@@ -1,0 +1,68 @@
+pipeline {
+
+    environment {
+        docker_image = ""
+        DOCKERHUB_CREDENTIALS=credentials('DockerHubCred')
+    } 
+    agent any
+
+    stages {
+        stage('1. Git Clone') {
+            steps {
+                script { 
+                    git branch: 'main', url: "https://github.com//BETr-Tracking/BETr.git"
+                }
+            }
+        }
+        stage('2. Maven Build') {
+            steps {
+                    sh 'mvn clean install'
+            }
+        }
+        
+
+        stage('3. Build Docker Image') {
+            steps {
+                dir('./Backend') {
+                    sh 'docker build -t svp3012/betr-backend .'
+                }
+                dir('./Frontend') {
+                    sh 'docker build -t svp3012/betr-frontend .'
+                }
+            }
+        }
+        stage('4. Dockerhub Login') {
+            steps {
+				sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+			}
+		}
+
+        stage('5. Push Docker Images') {
+            steps {
+                script{
+                    sh 'docker push svp3012/betr-backend'
+                    sh 'docker push svp3012/betr-frontend'
+                }
+            }
+        }
+
+       stage('6. Run Ansible Playbook') {
+            steps {
+                ansiblePlaybook becomeUser: null,
+                colorized: true, 
+                credentialsId: 'localhost', 
+                disableHostKeyChecking: true, 
+                inventory: 'Devops/inventory', 
+                playbook: 'Devops/deploy.yml', 
+                vaultTmpPath: '',
+                sudoUser: null
+            }
+        }
+
+    }
+    post {
+		always {
+			sh 'docker logout'
+		}
+	}
+}
